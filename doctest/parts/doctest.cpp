@@ -1452,7 +1452,7 @@ namespace detail {
         auto* pos = std::strstr(const_cast<const char*>(buffer), "TracerPid:\t");
         return pos != nullptr && pos[sizeof("TracerPid:\t") - 1] != '0';
     }
-#elif defined(DOCTEST_PLATFORM_MAC)
+#elif defined(DOCTEST_PLATFORM_MAC) && defined(__apple_build_version__)
     // The following function is taken directly from the following technical note:
     // https://developer.apple.com/library/archive/qa/qa1361/_index.html
     // Returns true if the current process is being debugged (either
@@ -1479,7 +1479,7 @@ namespace detail {
         // We're being debugged if the P_TRACED flag is set.
         return ((info.kp_proc.p_flag & P_TRACED) != 0);
     }
-#elif DOCTEST_MSVC || defined(__MINGW32__) || defined(__MINGW64__)
+#elif defined(_MSC_VER) || defined(__MINGW32__)
     bool isDebuggerActive() { return ::IsDebuggerPresent() != 0; }
 #else
     bool isDebuggerActive() { return false; }
