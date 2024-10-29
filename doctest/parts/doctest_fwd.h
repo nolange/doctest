@@ -519,6 +519,7 @@ static inline void psnip_trap(void) { __asm__ __volatile__("NOP\n .word 0x100000
 #endif
 #endif
 #define DOCTEST_BREAK_INTO_DEBUGGER() psnip_trap()
+#endif // DOCTEST_BREAK_INTO_DEBUGGER
 
 // this is kept here for backwards compatibility since the config option was changed
 #ifdef DOCTEST_CONFIG_USE_IOSFWD
