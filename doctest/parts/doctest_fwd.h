@@ -462,35 +462,63 @@ namespace doctest { namespace detail {
     DOCTEST_CLANG_SUPPRESS_WARNING_POP
 
 #ifndef DOCTEST_BREAK_INTO_DEBUGGER
-// should probably take a look at https://github.com/scottt/debugbreak
-#ifdef DOCTEST_PLATFORM_LINUX
-#if defined(__GNUC__) && (defined(__i386) || defined(__x86_64))
-// Break at the location of the failing check if possible
-#define DOCTEST_BREAK_INTO_DEBUGGER() __asm__("int $3\n" : :) // NOLINT(hicpp-no-assembler)
+// Portable Snippets - https://github.com/nemequ/portable-snippets
+#if defined(__has_builtin) && !defined(__ibmxl__)
+#if __has_builtin(__builtin_debugtrap)
+#define psnip_trap() __builtin_debugtrap()
+#elif __has_builtin(__debugbreak)
+#define psnip_trap() __debugbreak()
+#endif
+#endif
+#if !defined(psnip_trap)
+#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+#define psnip_trap() __debugbreak()
+#elif defined(__ARMCC_VERSION)
+#define psnip_trap() __breakpoint(42)
+#elif defined(__ibmxl__) || defined(__xlC__)
+#include <builtins.h>
+#define psnip_trap() __trap(42)
+#elif defined(__DMC__) && defined(_M_IX86)
+static inline void psnip_trap(void) { __asm int 3h; }
+#elif defined(__i386__) || defined(__x86_64__)
+static inline void psnip_trap(void) { __asm__ __volatile__("int3"); }
+#elif defined(__thumb__)
+static inline void psnip_trap(void) { __asm__ __volatile__(".inst 0xde01"); }
+#elif defined(__aarch64__)
+static inline void psnip_trap(void) { __asm__ __volatile__(".inst 0xd4200000"); }
+#elif defined(__arm__)
+static inline void psnip_trap(void) { __asm__ __volatile__(".inst 0xe7f001f0"); }
+#elif defined(__POWERPC__)
+static inline void psnip_trap(void) {
+    __asm__ __volatile__("li r0, 20\nsc\nnop\nli r0, 37\nli r4, 2\nsc\nnop\n"
+                         :
+                         :
+                         : "memory", "r0", "r3", "r4");
+}
+#elif defined(__alpha__) && !defined(__osf__)
+static inline void psnip_trap(void) { __asm__ __volatile__("bpt"); }
+#elif defined(_54_)
+static inline void psnip_trap(void) { __asm__ __volatile__("ESTOP"); }
+#elif defined(_55_)
+static inline void psnip_trap(void) {
+    __asm__ __volatile__(";\n .if (.MNEMONIC)\n ESTOP_1\n .else\n ESTOP_1()\n .endif\n NOP");
+}
+#elif defined(_64P_)
+static inline void psnip_trap(void) { __asm__ __volatile__("SWBP 0"); }
+#elif defined(_6x_)
+static inline void psnip_trap(void) { __asm__ __volatile__("NOP\n .word 0x10000000"); }
+#elif defined(__STDC_HOSTED__) && (__STDC_HOSTED__ == 0) && defined(__GNUC__)
+#define psnip_trap() __builtin_trap()
 #else
 #include <signal.h>
-#define DOCTEST_BREAK_INTO_DEBUGGER() raise(SIGTRAP)
-#endif
-#elif defined(DOCTEST_PLATFORM_MAC)
-#if defined(__x86_64) || defined(__x86_64__) || defined(__amd64__) || defined(__i386)
-#define DOCTEST_BREAK_INTO_DEBUGGER() __asm__("int $3\n" : :) // NOLINT(hicpp-no-assembler)
-#elif defined(__ppc__) || defined(__ppc64__)
-// https://www.cocoawithlove.com/2008/03/break-into-debugger.html
-#define DOCTEST_BREAK_INTO_DEBUGGER() __asm__("li r0, 20\nsc\nnop\nli r0, 37\nli r4, 2\nsc\nnop\n": : : "memory","r0","r3","r4") // NOLINT(hicpp-no-assembler)
+#if defined(SIGTRAP)
+#define psnip_trap() raise(SIGTRAP)
 #else
-#define DOCTEST_BREAK_INTO_DEBUGGER() __asm__("brk #0"); // NOLINT(hicpp-no-assembler)
+#define psnip_trap() raise(SIGABRT)
 #endif
-#elif DOCTEST_MSVC
-#define DOCTEST_BREAK_INTO_DEBUGGER() __debugbreak()
-#elif defined(__MINGW32__)
-DOCTEST_GCC_SUPPRESS_WARNING_WITH_PUSH("-Wredundant-decls")
-extern "C" __declspec(dllimport) void __stdcall DebugBreak();
-DOCTEST_GCC_SUPPRESS_WARNING_POP
-#define DOCTEST_BREAK_INTO_DEBUGGER() ::DebugBreak()
-#else // linux
-#define DOCTEST_BREAK_INTO_DEBUGGER() (static_cast<void>(0))
-#endif // linux
-#endif // DOCTEST_BREAK_INTO_DEBUGGER
+#endif
+#endif
+#define DOCTEST_BREAK_INTO_DEBUGGER() psnip_trap()
 
 // this is kept here for backwards compatibility since the config option was changed
 #ifdef DOCTEST_CONFIG_USE_IOSFWD
