@@ -2640,11 +2640,15 @@ namespace {
                 auto const timeStampSize = sizeof("2017-01-16T17:06:45Z");
 
                 std::tm timeInfo;
-#ifdef DOCTEST_PLATFORM_WINDOWS
+#if defined(_MSC_VER) || defined(__MINGW32__)
                 gmtime_s(&timeInfo, &rawtime);
-#else // DOCTEST_PLATFORM_WINDOWS
+#elif defined(__ORBIS__) || defined(__PROSPERO__)
+                gmtime_s(&rawtime, &timeInfo);
+#elif defined(__IAR_SYSTEMS_ICC__)
+                timeInfo = *std::gmtime(&rawtime);
+#else
                 gmtime_r(&rawtime, &timeInfo);
-#endif // DOCTEST_PLATFORM_WINDOWS
+#endif
 
                 char timeStamp[timeStampSize];
                 const char* const fmt = "%Y-%m-%dT%H:%M:%SZ";
