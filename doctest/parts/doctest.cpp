@@ -1465,6 +1465,11 @@ namespace detail {
     bool isDebuggerActive() {
         ErrnoGuard guard;
         std::ifstream in("/proc/self/status");
+#if defined(DOCTEST_PLATFORM_MAC)
+#error "DOCTEST_PLATFORM_MAC SET"
+#endif
+        if (!in)
+            std::cerr << "\nFailed to read /proc/self/status MAYBE BECAUSE WE ARE ON MAC\n";
         for(std::string line; std::getline(in, line);) {
             static const int PREFIX_LEN = 11;
             if(line.compare(0, PREFIX_LEN, "TracerPid:\t") == 0) {
